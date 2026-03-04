@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>queuectl — Dashboard</title>
+    <meta name="description" content="Real-time monitoring dashboard for queuectl job queue system">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d2e;
+            --bg-card: #1e2235;
+            --bg-hover: #252a40;
+            --text-primary: #e4e6f0;
+            --text-secondary: #8b8fa3;
+            --text-muted: #5b5f73;
+            --accent-blue: #4f8ff7;
+            --accent-green: #34d399;
+            --accent-red: #f87171;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #a78bfa;
+            --accent-cyan: #22d3ee;
+            --border: #2a2e42;
+            --radius: 12px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ===== Navigation ===== */
+        .navbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            height: 64px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar-brand span { font-size: 1.4rem; }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            margin-left: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 0.5rem 0;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .nav-status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ===== Main Layout ===== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .refresh-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        /* ===== Stat Cards ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-pending .stat-value { color: var(--accent-yellow); }
+        .stat-processing .stat-value { color: var(--accent-blue); }
+        .stat-completed .stat-value { color: var(--accent-green); }
+        .stat-failed .stat-value { color: var(--accent-red); }
+        .stat-dead .stat-value { color: var(--accent-purple); }
+        .stat-cancelled .stat-value { color: var(--text-muted); }
+        .stat-workers .stat-value { color: var(--accent-cyan); }
+
+        /* ===== Charts ===== */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+        }
+
+        .chart-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 250px;
+        }
+
+        /* ===== Jobs Table ===== */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .table-filters {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        tr:hover td { background: var(--bg-hover); }
+
+        .state-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .state-pending { background: rgba(251,191,36,0.15); color: var(--accent-yellow); }
+        .state-processing { background: rgba(79,143,247,0.15); color: var(--accent-blue); }
+        .state-completed { background: rgba(52,211,153,0.15); color: var(--accent-green); }
+        .state-failed { background: rgba(248,113,113,0.15); color: var(--accent-red); }
+        .state-dead { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+        .state-cancelled { background: rgba(91,95,115,0.15); color: var(--text-muted); }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .priority-high { background: rgba(248,113,113,0.15); color: var(--accent-red); }
+        .priority-medium { background: rgba(251,191,36,0.15); color: var(--accent-yellow); }
+        .priority-low { background: rgba(91,95,115,0.15); color: var(--text-muted); }
+
+        .cmd-text {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .tag {
+            display: inline-block;
+            background: rgba(79,143,247,0.1);
+            color: var(--accent-blue);
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            margin-right: 0.25rem;
+        }
+
+        .action-link {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-size: 0.8rem;
+        }
+
+        .action-link:hover { text-decoration: underline; }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">
+            <span>⚡</span> queuectl
+        </a>
+        <ul class="nav-links">
+            <li><a href="/" class="active">Dashboard</a></li>
+            <li><a href="/jobs">Jobs</a></li>
+        </ul>
+        <div class="nav-status">
+            <div class="status-dot"></div>
+            <span id="last-updated">Live</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Dashboard</h1>
+            <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card stat-pending">
+                <div class="stat-label">Pending</div>
+                <div class="stat-value" id="stat-pending">—</div>
+            </div>
+            <div class="stat-card stat-processing">
+                <div class="stat-label">Processing</div>
+                <div class="stat-value" id="stat-processing">—</div>
+            </div>
+            <div class="stat-card stat-completed">
+                <div class="stat-label">Completed</div>
+                <div class="stat-value" id="stat-completed">—</div>
+            </div>
+            <div class="stat-card stat-failed">
+                <div class="stat-label">Failed</div>
+                <div class="stat-value" id="stat-failed">—</div>
+            </div>
+            <div class="stat-card stat-dead">
+                <div class="stat-label">Dead (DLQ)</div>
+                <div class="stat-value" id="stat-dead">—</div>
+            </div>
+            <div class="stat-card stat-cancelled">
+                <div class="stat-label">Cancelled</div>
+                <div class="stat-value" id="stat-cancelled">—</div>
+            </div>
+            <div class="stat-card stat-workers">
+                <div class="stat-label">Active Workers</div>
+                <div class="stat-value" id="stat-workers">—</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>Job Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="stateChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Recent Activity</h3>
+                <div class="chart-container">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Jobs Table -->
+        <div class="table-card">
+            <div class="table-header">
+                <h3>Recent Jobs</h3>
+                <div class="table-filters">
+                    <button class="filter-btn active" onclick="filterJobs('')">All</button>
+                    <button class="filter-btn" onclick="filterJobs('pending')">Pending</button>
+                    <button class="filter-btn" onclick="filterJobs('processing')">Processing</button>
+                    <button class="filter-btn" onclick="filterJobs('completed')">Completed</button>
+                    <button class="filter-btn" onclick="filterJobs('failed')">Failed</button>
+                    <button class="filter-btn" onclick="filterJobs('dead')">DLQ</button>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Command</th>
+                        <th>State</th>
+                        <th>Priority</th>
+                        <th>Tags</th>
+                        <th>Attempts</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-tbody">
+                    <tr><td colspan="8" style="text-align:center;color:var(--text-muted)">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let stateChart = null;
+        let activityChart = null;
+        let currentFilter = '';
+
+        // Initialize charts
+        Chart.defaults.color = '#8b8fa3';
+        Chart.defaults.borderColor = '#2a2e42';
+
+        function initCharts() {
+            const stateCtx = document.getElementById('stateChart').getContext('2d');
+            stateChart = new Chart(stateCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending', 'Processing', 'Completed', 'Failed', 'Dead', 'Cancelled'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: ['#fbbf24', '#4f8ff7', '#34d399', '#f87171', '#a78bfa', '#5b5f73'],
+                        borderWidth: 0,
+                        hoverOffset: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } } },
+                    cutout: '60%',
+                }
+            });
+
+            const actCtx = document.getElementById('activityChart').getContext('2d');
+            activityChart = new Chart(actCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Completed',
+                        data: [],
+                        backgroundColor: 'rgba(52,211,153,0.6)',
+                        borderRadius: 4,
+                    }, {
+                        label: 'Failed',
+                        data: [],
+                        backgroundColor: 'rgba(248,113,113,0.6)',
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true }
+                    },
+                    plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } }
+                }
+            });
+        }
+
+        function getPriorityName(p) {
+            return {0: 'low', 1: 'medium', 2: 'high'}[p] || 'medium';
+        }
+
+        function formatDate(d) {
+            if (!d) return '—';
+            return new Date(d).toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        }
+
+        async function fetchAPI(path) {
+            const res = await fetch('/api' + path);
+            return res.json();
+        }
+
+        async function refreshData() {
+            try {
+                const status = await fetchAPI('/status');
+                const jobs = status.jobs || {};
+
+                document.getElementById('stat-pending').textContent = jobs.pending || 0;
+                document.getElementById('stat-processing').textContent = jobs.processing || 0;
+                document.getElementById('stat-completed').textContent = jobs.completed || 0;
+                document.getElementById('stat-failed').textContent = jobs.failed || 0;
+                document.getElementById('stat-dead').textContent = jobs.dead || 0;
+                document.getElementById('stat-cancelled').textContent = jobs.cancelled || 0;
+                document.getElementById('stat-workers').textContent = status.active_workers || 0;
+
+                if (stateChart) {
+                    stateChart.data.datasets[0].data = [
+                        jobs.pending||0, jobs.processing||0, jobs.completed||0,
+                        jobs.failed||0, jobs.dead||0, jobs.cancelled||0
+                    ];
+                    stateChart.update();
+                }
+
+                document.getElementById('last-updated').textContent =
+                    'Updated ' + new Date().toLocaleTimeString();
+
+                await loadJobs();
+            } catch (e) {
+                console.error('Refresh failed:', e);
+            }
+        }
+
+        async function loadJobs() {
+            const url = currentFilter ? `/jobs?state=${currentFilter}&limit=20` : '/jobs?limit=20';
+            const data = await fetchAPI(url);
+            const tbody = document.getElementById('jobs-tbody');
+
+            if (!data.jobs || data.jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted)">No jobs found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.jobs.map(j => {
+                const id = j.id.length > 18 ? j.id.slice(0,16)+'…' : j.id;
+                const cmd = j.command.length > 30 ? j.command.slice(0,28)+'…' : j.command;
+                const pName = getPriorityName(j.priority);
+                const tags = j.tags ? j.tags.split(',').map(t => `<span class="tag">${t.trim()}</span>`).join('') : '—';
+
+                return `<tr>
+                    <td><code style="color:var(--accent-cyan);font-size:0.8rem">${id}</code></td>
+                    <td><span class="cmd-text">${cmd}</span></td>
+                    <td><span class="state-badge state-${j.state}">${j.state}</span></td>
+                    <td><span class="priority-badge priority-${pName}">${pName}</span></td>
+                    <td>${tags}</td>
+                    <td>${j.attempts || 0}</td>
+                    <td style="color:var(--text-muted);font-size:0.8rem">${formatDate(j.created_at)}</td>
+                    <td><a class="action-link" href="/logs/${j.id}">logs</a></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function filterJobs(state) {
+            currentFilter = state;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            loadJobs();
+        }
+
+        // Init
+        initCharts();
+        refreshData();
+        setInterval(refreshData, 5000);
+    </script>
+</body>
+</html>

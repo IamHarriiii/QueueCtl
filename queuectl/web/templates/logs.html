@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Logs — queuectl</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg-primary:#0f1117;--bg-secondary:#1a1d2e;--bg-card:#1e2235;--bg-hover:#252a40;--text-primary:#e4e6f0;--text-secondary:#8b8fa3;--text-muted:#5b5f73;--accent-blue:#4f8ff7;--accent-green:#34d399;--accent-red:#f87171;--accent-yellow:#fbbf24;--accent-purple:#a78bfa;--accent-cyan:#22d3ee;--border:#2a2e42;--radius:12px}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Inter',sans-serif;background:var(--bg-primary);color:var(--text-primary);min-height:100vh}
+        .navbar{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;height:64px;position:sticky;top:0;z-index:100}
+        .navbar-brand{font-size:1.25rem;font-weight:700;color:var(--accent-blue);text-decoration:none;display:flex;align-items:center;gap:.5rem}
+        .nav-links{display:flex;gap:1.5rem;margin-left:2rem;list-style:none}
+        .nav-links a{color:var(--text-secondary);text-decoration:none;font-size:.9rem;font-weight:500;padding:.5rem 0;border-bottom:2px solid transparent;transition:all .2s}
+        .nav-links a:hover{color:var(--text-primary);border-bottom-color:var(--accent-blue)}
+        .container{max-width:1200px;margin:0 auto;padding:1.5rem 2rem}
+        .page-header{margin-bottom:1.5rem}
+        .page-header h1{font-size:1.5rem;font-weight:600;margin-bottom:.25rem}
+        .page-header .subtitle{color:var(--text-muted);font-size:.85rem}
+        .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem}
+        .info-item{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
+        .info-label{color:var(--text-muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem}
+        .info-value{font-size:1rem;font-weight:500}
+        .state-badge{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;text-transform:uppercase}
+        .state-pending{background:rgba(251,191,36,.15);color:var(--accent-yellow)}
+        .state-processing{background:rgba(79,143,247,.15);color:var(--accent-blue)}
+        .state-completed{background:rgba(52,211,153,.15);color:var(--accent-green)}
+        .state-failed{background:rgba(248,113,113,.15);color:var(--accent-red)}
+        .state-dead{background:rgba(167,139,250,.15);color:var(--accent-purple)}
+        .state-cancelled{background:rgba(91,95,115,.15);color:var(--text-muted)}
+        .log-section{margin-bottom:1.5rem}
+        .log-section h3{font-size:.9rem;font-weight:600;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+        .log-output{background:#0d0f14;border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;font-family:'Fira Code',monospace;font-size:.8rem;line-height:1.6;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;color:var(--text-secondary)}
+        .log-stdout{border-left:3px solid var(--accent-green)}
+        .log-stderr{border-left:3px solid var(--accent-red)}
+        .log-empty{color:var(--text-muted);font-style:italic}
+        .audit-section{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+        .audit-section h3{padding:1rem 1.25rem;border-bottom:1px solid var(--border);font-size:.9rem}
+        .audit-item{display:flex;gap:1rem;padding:.75rem 1.25rem;border-bottom:1px solid var(--border);font-size:.8rem;align-items:center}
+        .audit-item:last-child{border-bottom:none}
+        .audit-time{color:var(--text-muted);min-width:170px;font-family:'Fira Code',monospace;font-size:.75rem}
+        .audit-arrow{color:var(--accent-blue)}
+        .actions{display:flex;gap:.5rem;margin-bottom:1.5rem}
+        .action-btn{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);padding:.5rem 1rem;border-radius:8px;cursor:pointer;font-size:.85rem;transition:all .2s}
+        .action-btn:hover{background:var(--accent-blue);border-color:var(--accent-blue);color:white}
+        .action-btn.danger:hover{background:var(--accent-red);border-color:var(--accent-red)}
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="navbar-brand"><span>⚡</span> queuectl</a>
+        <ul class="nav-links">
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/jobs">Jobs</a></li>
+        </ul>
+    </nav>
+    <div class="container">
+        <div class="page-header">
+            <h1>Job Details</h1>
+            <div class="subtitle" id="job-id">Loading...</div>
+        </div>
+        <div class="info-grid" id="info-grid"></div>
+        <div class="actions" id="actions"></div>
+        <div class="log-section">
+            <h3>📤 Standard Output</h3>
+            <div class="log-output log-stdout" id="stdout"><span class="log-empty">No output captured</span></div>
+        </div>
+        <div class="log-section">
+            <h3>📥 Standard Error</h3>
+            <div class="log-output log-stderr" id="stderr"><span class="log-empty">No errors</span></div>
+        </div>
+        <div class="audit-section">
+            <h3>📋 Audit Trail</h3>
+            <div id="audit-list"><div class="audit-item" style="color:var(--text-muted)">Loading...</div></div>
+        </div>
+    </div>
+    <script>
+        const jobId = '{{ job_id }}';
+        function getPriorityName(p){return{0:'low',1:'medium',2:'high'}[p]||'medium'}
+        function formatDate(d){if(!d)return'—';return new Date(d).toLocaleString()}
+        async function loadJob(){
+            const data=await(await fetch('/api/jobs/'+jobId)).json();
+            if(data.error){document.getElementById('job-id').textContent='Job not found';return}
+            document.getElementById('job-id').textContent='ID: '+data.id;
+            const pName=getPriorityName(data.priority);
+            document.getElementById('info-grid').innerHTML=`
+                <div class="info-item"><div class="info-label">Command</div><div class="info-value" style="font-family:'Fira Code',monospace;font-size:.85rem">${data.command}</div></div>
+                <div class="info-item"><div class="info-label">State</div><div class="info-value"><span class="state-badge state-${data.state}">${data.state}</span></div></div>
+                <div class="info-item"><div class="info-label">Priority</div><div class="info-value">${pName}</div></div>
+                <div class="info-item"><div class="info-label">Attempts</div><div class="info-value">${data.attempts} / ${data.max_retries}</div></div>
+                <div class="info-item"><div class="info-label">Exit Code</div><div class="info-value" style="color:${data.exit_code===0?'var(--accent-green)':data.exit_code?'var(--accent-red)':'var(--text-muted)'}">${data.exit_code!==null?data.exit_code:'—'}</div></div>
+                <div class="info-item"><div class="info-label">Tags</div><div class="info-value">${data.tags||'—'}</div></div>
+                <div class="info-item"><div class="info-label">Pool</div><div class="info-value">${data.pool||'default'}</div></div>
+                <div class="info-item"><div class="info-label">Created</div><div class="info-value" style="font-size:.8rem">${formatDate(data.created_at)}</div></div>
+            `;
+            const canCancel=['pending','processing'].includes(data.state);
+            const canRetry=data.state==='dead';
+            document.getElementById('actions').innerHTML=`
+                ${canCancel?`<button class="action-btn danger" onclick="cancelJob()">Cancel Job</button>`:''}
+                ${canRetry?`<button class="action-btn" onclick="retryJob()">Retry from DLQ</button>`:''}
+                <button class="action-btn" onclick="location.href='/jobs'">← Back to Jobs</button>
+            `;
+            document.getElementById('stdout').innerHTML=data.stdout||'<span class="log-empty">No output captured</span>';
+            document.getElementById('stderr').innerHTML=data.stderr||'<span class="log-empty">No errors</span>';
+            if(data.audit_trail&&data.audit_trail.length){
+                document.getElementById('audit-list').innerHTML=data.audit_trail.map(e=>`
+                    <div class="audit-item">
+                        <span class="audit-time">${formatDate(e.timestamp)}</span>
+                        <span class="state-badge state-${e.old_state||'pending'}">${e.old_state||'—'}</span>
+                        <span class="audit-arrow">→</span>
+                        <span class="state-badge state-${e.new_state}">${e.new_state}</span>
+                        ${e.details?`<span style="color:var(--text-muted);margin-left:auto">${e.details}</span>`:''}
+                    </div>
+                `).join('');
+            }else{document.getElementById('audit-list').innerHTML='<div class="audit-item" style="color:var(--text-muted)">No audit trail available</div>'}
+        }
+        async function cancelJob(){if(confirm('Cancel this job?')){await fetch('/api/jobs/'+jobId+'/cancel',{method:'POST'});loadJob()}}
+        async function retryJob(){if(confirm('Retry this job?')){await fetch('/api/jobs/'+jobId+'/retry',{method:'POST'});loadJob()}}
+        loadJob();
+        setInterval(loadJob,5000);
+    </script>
+</body>
+</html>

@@ -46,7 +46,21 @@ class Queue:
         success = self.storage.create_job(job_data)
         
         if success:
-            return Job.from_dict(job_data)
+            job = Job.from_dict(job_data)
+            
+            # Propagate priority to dependencies if enabled
+            if self.config.get('priority_inheritance', True):
+                try:
+                    from .dependencies import DependencyResolver
+                    resolver = DependencyResolver(self.storage)
+                    
+                    # If job has dependencies, propagate priority
+                    if resolver.get_dependencies(job.id):
+                        resolver.propagate_priority(job.id, job.priority)
+                except:
+                    pass  # Don't fail enqueue if priority propagation fails
+            
+            return job
         
         return None
     

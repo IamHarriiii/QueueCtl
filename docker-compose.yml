@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Queue dashboard + API
+  dashboard:
+    build: .
+    container_name: queuectl-dashboard
+    command: queuectl dashboard --host 0.0.0.0 --port 5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - queuectl-data:/data/.queuectl
+    environment:
+      - QUEUECTL_DB_PATH=/data/.queuectl/queuectl.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Worker processes
+  worker:
+    build: .
+    container_name: queuectl-worker
+    command: queuectl worker start --count 3
+    volumes:
+      - queuectl-data:/data/.queuectl
+    environment:
+      - QUEUECTL_DB_PATH=/data/.queuectl/queuectl.db
+    depends_on:
+      - dashboard
+    restart: unless-stopped
+
+  # GPU worker pool (optional)
+  worker-gpu:
+    build: .
+    container_name: queuectl-worker-gpu
+    command: queuectl worker start --count 1 --pool gpu
+    volumes:
+      - queuectl-data:/data/.queuectl
+    environment:
+      - QUEUECTL_DB_PATH=/data/.queuectl/queuectl.db
+    depends_on:
+      - dashboard
+    restart: unless-stopped
+    profiles:
+      - gpu
+
+volumes:
+  queuectl-data:
+    driver: local
