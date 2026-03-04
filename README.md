@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ queuectl
+# QueueCtl
 
 **A production-grade CLI job queue with workers, retries, webhooks, cron scheduling, and a real-time dashboard.**
 
