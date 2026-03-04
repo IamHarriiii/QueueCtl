@@ -29,11 +29,11 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-from .storage import Storage
-from .config import Config
-from .queue import Queue
-from .worker import Worker, WorkerManager
-from .models import Job, JobState, JobPriority
+from .storage import Storage  # noqa: E402
+from .config import Config  # noqa: E402
+from .queue import Queue  # noqa: E402
+from .worker import Worker, WorkerManager  # noqa: E402
+from .models import Job, JobState, JobPriority  # noqa: E402
 
 __all__ = [
     'Storage',

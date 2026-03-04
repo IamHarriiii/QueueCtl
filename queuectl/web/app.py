@@ -3,11 +3,10 @@ Flask web application for queuectl dashboard
 Provides real-time monitoring and management interface with WebSocket support
 Features: API token authentication, real-time updates, job management
 """
-from flask import Flask, render_template, jsonify, request, abort
+from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 import os
 import sys
-import json
 import time
 import threading
 import logging
@@ -19,12 +18,12 @@ parent_dir = str(Path(__file__).resolve().parent.parent)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from queuectl.storage import Storage
-from queuectl.config import Config
-from queuectl.queue import Queue
-from queuectl.models import Job, JobState, JobPriority
-from queuectl.dependencies import DependencyResolver
-from queuectl.metrics import MetricsTracker
+from queuectl.storage import Storage  # noqa: E402
+from queuectl.config import Config  # noqa: E402
+from queuectl.queue import Queue  # noqa: E402
+from queuectl.models import JobPriority  # noqa: E402
+from queuectl.dependencies import DependencyResolver  # noqa: E402
+from queuectl.metrics import MetricsTracker  # noqa: E402
 
 logger = logging.getLogger('queuectl.web')
 
@@ -104,16 +103,16 @@ def api_jobs():
     tag = request.args.get('tag')
     pool = request.args.get('pool')
     limit = int(request.args.get('limit', 50))
-    
+
     jobs_list = storage.list_jobs(state=state, tags=tag, pool=pool)
-    
+
     # Filter by priority
     if priority:
         priority_int = JobPriority.from_string(priority)
         jobs_list = [j for j in jobs_list if j.get('priority') == priority_int]
-    
+
     jobs_list = jobs_list[:limit]
-    
+
     return jsonify({
         'jobs': jobs_list,
         'total': len(jobs_list)
@@ -125,10 +124,10 @@ def api_jobs():
 def api_job_detail(job_id):
     """Get detailed job information"""
     job_data = storage.get_job(job_id)
-    
+
     if not job_data:
         return jsonify({'error': 'Job not found'}), 404
-    
+
     # Add dependency info
     try:
         dep_list = deps.get_dependencies(job_id)
@@ -140,13 +139,13 @@ def api_job_detail(job_id):
         }
     except Exception:
         job_data['dependency_info'] = None
-    
+
     # Add audit trail
     try:
         job_data['audit_trail'] = storage.get_audit_log(job_id)
     except Exception:
         job_data['audit_trail'] = []
-    
+
     return jsonify(job_data)
 
 
@@ -175,11 +174,11 @@ def api_retry_job(job_id):
 def api_metrics():
     """Get metrics data"""
     period = int(request.args.get('period', 24))
-    
+
     stats = metrics.get_job_stats(period_hours=period)
     worker_util = metrics.get_worker_utilization(period_hours=period)
     queue_depth = metrics.get_queue_depth_over_time(period_hours=period)
-    
+
     return jsonify({
         'stats': stats,
         'worker_utilization': worker_util,
@@ -222,7 +221,6 @@ if socketio:
         logger.debug(f"Client connected: {request.sid}")
         emit('connected', {'status': 'connected'})
 
-
     @socketio.on('disconnect')
     def handle_disconnect():
         """Handle client disconnection"""
@@ -232,25 +230,23 @@ if socketio:
             del active_streams[client_id]
         logger.debug(f"Client disconnected: {client_id}")
 
-
     @socketio.on('subscribe_job')
     def handle_subscribe_job(data):
         """Subscribe to real-time updates for a specific job"""
         job_id = data.get('job_id')
         client_id = request.sid
-        
+
         if not job_id:
             emit('error', {'message': 'job_id is required'})
             return
-        
+
         job_data = storage.get_job(job_id)
         if not job_data:
             emit('error', {'message': f'Job {job_id} not found'})
             return
-        
+
         emit('job_update', job_data)
         start_log_stream(job_id, client_id)
-
 
     @socketio.on('unsubscribe_job')
     def handle_unsubscribe_job(data):
@@ -267,36 +263,36 @@ def start_log_stream(job_id, client_id):
     def stream_logs():
         last_state = None
         last_stdout = None
-        
+
         stream_info = active_streams.get(client_id, {})
-        
+
         while stream_info.get('active', False):
             job_data = storage.get_job(job_id)
             if not job_data:
                 break
-            
+
             current_state = job_data.get('state')
             current_stdout = job_data.get('stdout')
-            
+
             if current_state != last_state or current_stdout != last_stdout:
                 if socketio:
                     socketio.emit('job_update', job_data, to=client_id)
-                    
+
                     if current_stdout and current_stdout != last_stdout:
                         new_output = current_stdout
                         if last_stdout:
                             new_output = current_stdout[len(last_stdout):]
-                        
+
                         if new_output:
                             socketio.emit('log_output', {
                                 'job_id': job_id,
                                 'output': new_output,
                                 'stream': 'stdout'
                             }, to=client_id)
-                
+
                 last_state = current_state
                 last_stdout = current_stdout
-                
+
                 if current_state in ['completed', 'failed', 'dead', 'cancelled']:
                     if job_data.get('stderr'):
                         if socketio:
@@ -306,15 +302,15 @@ def start_log_stream(job_id, client_id):
                                 'stream': 'stderr'
                             }, to=client_id)
                     break
-            
+
             time.sleep(1)
-    
+
     # Store stream info
     active_streams[client_id] = {
         'job_id': job_id,
         'active': True
     }
-    
+
     thread = threading.Thread(target=stream_logs, daemon=True)
     thread.start()
 
@@ -327,7 +323,7 @@ def run_dashboard(host='0.0.0.0', port=5000, debug=False):
     """Run the dashboard server"""
     auth_status = "enabled (set QUEUECTL_API_TOKEN)" if API_TOKEN else "disabled"
     logger.info(f"Starting dashboard on {host}:{port} (auth: {auth_status})")
-    
+
     if socketio:
         socketio.run(app, host=host, port=port, debug=debug, allow_unsafe_werkzeug=True)
     else:

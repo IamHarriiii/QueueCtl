@@ -7,15 +7,13 @@ Includes: enqueue, worker, status, list, dlq, config, cancel, metrics,
 import click
 import json
 import sys
-import os
 from pathlib import Path
-from typing import Optional
 
 from .storage import Storage
 from .config import Config
 from .queue import Queue
 from .worker import WorkerManager
-from .models import JobState, JobPriority
+from .models import JobPriority
 
 
 # Initialize storage, config, and queue (lazy loaded)
@@ -132,7 +130,7 @@ def enqueue(job_json, command, priority, max_retries, timeout, tags, pool, delay
             if json_out:
                 _output_json(job.to_dict())
             else:
-                click.echo(f"✓ Job enqueued successfully")
+                click.echo("✓ Job enqueued successfully")
                 click.echo(f"  ID: {job.id}")
                 click.echo(f"  Command: {job.command}")
                 click.echo(f"  Priority: {job.get_priority_name()}")
@@ -148,7 +146,7 @@ def enqueue(job_json, command, priority, max_retries, timeout, tags, pool, delay
                     click.echo(f"  Depends on: {depends_on}")
                 click.echo(f"  State: {job.state}")
         else:
-            click.echo(f"✗ Failed to enqueue job (ID may already exist)", err=True)
+            click.echo("✗ Failed to enqueue job (ID may already exist)", err=True)
             sys.exit(1)
 
     except json.JSONDecodeError as e:
@@ -203,7 +201,7 @@ def batch_enqueue(file_path, json_out):
         if json_out:
             _output_json({'total': len(jobs_data), 'success': success_count, 'failed': fail_count, 'results': results})
         else:
-            click.echo(f"✓ Batch enqueue complete: {success_count} succeeded, {fail_count} failed out of {len(jobs_data)} jobs")
+            click.echo(f"✓ Batch enqueue complete: {success_count} succeeded, {fail_count} failed out of {len(jobs_data)} jobs")  # noqa: E501
             for r in results:
                 status_icon = "✓" if r['status'] == 'enqueued' else "✗"
                 click.echo(f"  {status_icon} {r['id']}: {r['status']}")
@@ -280,7 +278,7 @@ def status(json_out):
     click.echo("=" * 50)
 
     jobs = status_info['jobs']
-    click.echo(f"\nJobs:")
+    click.echo("\nJobs:")
     click.echo(f"  Pending:    {jobs.get('pending', 0):>5}")
     click.echo(f"  Processing: {jobs.get('processing', 0):>5}")
     click.echo(f"  Completed:  {jobs.get('completed', 0):>5}")
@@ -293,7 +291,7 @@ def status(json_out):
     click.echo(f"\nActive Workers: {status_info['active_workers']}")
 
     all_config = config.get_all()
-    click.echo(f"\nConfiguration:")
+    click.echo("\nConfiguration:")
     for key, value in sorted(all_config.items()):
         click.echo(f"  {key}: {value}")
 
@@ -350,13 +348,13 @@ def list_jobs(state, priority, tag, pool, limit, json_out):
         if tag:
             filters.append(f"tag '{tag}'")
         filter_str = " and ".join(filters) if filters else ""
-        click.echo(f"No jobs found" + (f" with {filter_str}" if filter_str else ""))
+        click.echo("No jobs found" + (f" with {filter_str}" if filter_str else ""))
         return
 
     jobs = jobs[:limit]
 
     click.echo("=" * 120)
-    click.echo(f"{'ID':<20} {'STATE':<12} {'PRIORITY':<10} {'COMMAND':<30} {'ATTEMPTS':<10} {'TAGS':<15} {'CREATED':<20}")
+    click.echo(f"{'ID':<20} {'STATE':<12} {'PRIORITY':<10} {'COMMAND':<30} {'ATTEMPTS':<10} {'TAGS':<15} {'CREATED':<20}")  # noqa: E501
     click.echo("=" * 120)
 
     for job in jobs:
@@ -366,7 +364,7 @@ def list_jobs(state, priority, tag, pool, limit, json_out):
         priority_name = job.get_priority_name()
         tags_str = (job.tags[:13] + '..') if job.tags and len(job.tags) > 15 else (job.tags or '-')
 
-        click.echo(f"{job_id:<20} {job.state:<12} {priority_name:<10} {command:<30} {job.attempts:<10} {tags_str:<15} {created:<20}")
+        click.echo(f"{job_id:<20} {job.state:<12} {priority_name:<10} {command:<30} {job.attempts:<10} {tags_str:<15} {created:<20}")  # noqa: E501
 
     if len(jobs) == limit:
         click.echo(f"\n(Showing first {limit} jobs, use --limit to see more)")
@@ -414,15 +412,15 @@ def logs(job_id, json_out):
     click.echo(f"Attempts:  {job.attempts}/{job.max_retries}")
 
     if job.stdout:
-        click.echo(f"\n--- STDOUT ---")
+        click.echo("\n--- STDOUT ---")
         click.echo(job.stdout)
 
     if job.stderr:
-        click.echo(f"\n--- STDERR ---")
+        click.echo("\n--- STDERR ---")
         click.echo(job.stderr)
 
     if not job.stdout and not job.stderr:
-        click.echo(f"\n(No output captured yet)")
+        click.echo("\n(No output captured yet)")
 
     click.echo("=" * 60)
 
@@ -796,12 +794,12 @@ def webhook_add(url, events, secret):
     webhook_id = f"webhook-{_uuid.uuid4().hex[:8]}"
 
     if manager.add_webhook(webhook_id, url, event_list, secret):
-        click.echo(f"✓ Webhook added successfully")
+        click.echo("✓ Webhook added successfully")
         click.echo(f"  ID: {webhook_id}")
         click.echo(f"  URL: {url}")
         click.echo(f"  Events: {', '.join(event_list)}")
     else:
-        click.echo(f"✗ Failed to add webhook", err=True)
+        click.echo("✗ Failed to add webhook", err=True)
         sys.exit(1)
 
 
@@ -911,14 +909,14 @@ def webhook_test(url):
         click.echo(f"Sending test webhook to {url}...")
         response = requests.post(url, json=payload, timeout=10)
 
-        click.echo(f"✓ Response received")
+        click.echo("✓ Response received")
         click.echo(f"  Status Code: {response.status_code}")
         click.echo(f"  Response: {response.text[:200]}")
 
         if 200 <= response.status_code < 300:
-            click.echo(f"✓ Webhook test successful")
+            click.echo("✓ Webhook test successful")
         else:
-            click.echo(f"⚠ Webhook returned non-2xx status code", err=True)
+            click.echo("⚠ Webhook returned non-2xx status code", err=True)
 
     except Exception as e:
         click.echo(f"✗ Request failed: {e}", err=True)
@@ -1025,7 +1023,7 @@ def completions(shell):
 
     env_var = shell_map[shell]
     click.echo(f"# queuectl {shell} completion")
-    click.echo(f"# Add this to your shell config:")
+    click.echo("# Add this to your shell config:")
     click.echo(f'eval "$({env_var} queuectl)"')
 
 
@@ -1047,7 +1045,7 @@ def audit(job_id, json_out):
     try:
         history = storage.get_audit_log(job_id)
     except Exception:
-        click.echo(f"✗ Audit log not available. Run migrations first: queuectl migrate run", err=True)
+        click.echo("✗ Audit log not available. Run migrations first: queuectl migrate run", err=True)
         sys.exit(1)
 
     if json_out:

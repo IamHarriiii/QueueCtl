@@ -4,7 +4,6 @@ Handles schema upgrades and version tracking
 """
 import sqlite3
 import logging
-from pathlib import Path
 from typing import List, Dict
 
 logger = logging.getLogger('queuectl.migrations')
@@ -12,7 +11,7 @@ logger = logging.getLogger('queuectl.migrations')
 
 class Migration:
     """Represents a single database migration"""
-    
+
     def __init__(self, version: int, description: str, sql: List[str]) -> None:
         self.version = version
         self.description = description
@@ -91,15 +90,15 @@ MIGRATIONS = [
 
 class MigrationManager:
     """Manages database migrations"""
-    
+
     def __init__(self, db_path: str) -> None:
         self.db_path = db_path
         self._ensure_migration_table()
-    
+
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection"""
         return sqlite3.connect(self.db_path)
-    
+
     def _ensure_migration_table(self) -> None:
         """Create migration tracking table if it doesn't exist"""
         conn = self._get_connection()
@@ -115,7 +114,7 @@ class MigrationManager:
             conn.commit()
         finally:
             conn.close()
-    
+
     def get_current_version(self) -> int:
         """Get current schema version"""
         conn = self._get_connection()
@@ -126,18 +125,18 @@ class MigrationManager:
             return result[0] if result[0] is not None else 1
         finally:
             conn.close()
-    
+
     def get_pending_migrations(self) -> List[Migration]:
         """Get list of pending migrations"""
         current_version = self.get_current_version()
         return [m for m in MIGRATIONS if m.version > current_version]
-    
+
     def apply_migration(self, migration: Migration) -> bool:
         """Apply a single migration"""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
-            
+
             for sql in migration.sql:
                 try:
                     cursor.execute(sql)
@@ -147,12 +146,12 @@ class MigrationManager:
                         logger.debug(f"Skipping (already applied): {sql[:60]}")
                         continue
                     raise
-            
+
             cursor.execute(
                 'INSERT INTO schema_migrations (version, description) VALUES (?, ?)',
                 (migration.version, migration.description)
             )
-            
+
             conn.commit()
             logger.info(f"Migration v{migration.version} applied: {migration.description}")
             return True
@@ -161,18 +160,18 @@ class MigrationManager:
             raise Exception(f"Migration {migration.version} failed: {e}")
         finally:
             conn.close()
-    
+
     def migrate(self) -> Dict[str, any]:
         """Run all pending migrations"""
         pending = self.get_pending_migrations()
-        
+
         if not pending:
             return {
                 'success': True,
                 'message': 'No pending migrations',
                 'current_version': self.get_current_version()
             }
-        
+
         applied = []
         for migration in pending:
             try:
@@ -185,25 +184,25 @@ class MigrationManager:
                     'applied': applied,
                     'failed_at': migration.version
                 }
-        
+
         return {
             'success': True,
             'message': f'Applied {len(applied)} migration(s)',
             'applied': applied,
             'current_version': self.get_current_version()
         }
-    
+
     def get_migration_history(self) -> List[Dict]:
         """Get migration history"""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT version, description, applied_at 
-                FROM schema_migrations 
+                SELECT version, description, applied_at
+                FROM schema_migrations
                 ORDER BY version
             ''')
-            
+
             return [
                 {
                     'version': row[0],
