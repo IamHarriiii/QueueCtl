@@ -1,345 +1,377 @@
-# queuectl - Background Job Queue System
+<div align="center">
+
+# ⚡ queuectl
+
+**A production-grade CLI job queue with workers, retries, webhooks, cron scheduling, and a real-time dashboard.**
 
 [![CI](https://github.com/IamHarriiii/Queuectl/actions/workflows/ci.yml/badge.svg)](https://github.com/IamHarriiii/Queuectl/actions/workflows/ci.yml)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0.0-orange.svg)](CHANGELOG.md)
+[![PyPI](https://img.shields.io/pypi/v/queuectl?color=blue&label=PyPI)](https://pypi.org/project/queuectl/)
+[![Python](https://img.shields.io/pypi/pyversions/queuectl)](https://pypi.org/project/queuectl/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Downloads](https://img.shields.io/pypi/dm/queuectl?color=brightgreen)](https://pypi.org/project/queuectl/)
 
-A production-grade CLI-based background job queue system with worker processes, retry logic with exponential backoff, Dead Letter Queue (DLQ), webhooks, cron scheduling, job dependencies, web dashboard, and Docker support.
+[Installation](#-installation) · [Quick Start](#-quick-start) · [Features](#-features) · [Documentation](#-documentation) · [Contributing](#-contributing)
 
-## 🎯 Features
+</div>
 
-### Core
-- ✅ **Job Queue Management** — Enqueue, cancel, schedule, and batch-enqueue jobs
-- ✅ **Multiple Workers** — Concurrent worker processes with pool support
-- ✅ **Automatic Retries** — Failed jobs retry with exponential backoff
-- ✅ **Dead Letter Queue** — Permanently failed jobs moved to DLQ
-- ✅ **Persistent Storage** — SQLite with WAL mode survives restarts
-- ✅ **Safety Timeout** — Auto-recovery of jobs from crashed workers (5 min)
-- ✅ **Job Output Logging** — Capture stdout, stderr, and exit codes
-- ✅ **Configurable** — Runtime configuration via CLI
-- ✅ **Clean CLI Interface** — 16 intuitive commands with `--json-output` support
+---
 
-### v2.0.0 Enhancements
-- ✅ **Job Priority Queues** — Low/medium/high with priority inheritance
-- ✅ **Job Dependencies** — DAG-based dependencies with cycle detection
-- ✅ **Worker Pools** — Route jobs to specialized workers (e.g., GPU, CPU, IO pool)
-- ✅ **Job Tags** — Categorize and filter jobs by tags
-- ✅ **Cron Scheduling** — Schedule recurring jobs with cron expressions
-- ✅ **Batch Enqueue** — Enqueue multiple jobs from a JSON file
-- ✅ **Webhook Notifications** — HTTP callbacks with HMAC signing & rate limiting
-- ✅ **Metrics & Statistics** — Track execution time, success rate, worker utilization
-- ✅ **Audit Trail** — Full state transition history for every job
-- ✅ **Web Dashboard** — Real-time monitoring with WebSocket, API token auth
-- ✅ **Command Validation** — Block dangerous patterns (rm -rf /, fork bombs)
-- ✅ **Database Migrations** — Safe schema upgrades with rollback support
-- ✅ **Docker Support** — Dockerfile + docker-compose for deployment
-- ✅ **CI/CD** — GitHub Actions pipeline for lint + test + Docker build
-- ✅ **Shell Completions** — Bash/Zsh/Fish autocomplete
+## Why queuectl?
 
-## 📋 Requirements
+Most job queues require Redis, RabbitMQ, or a separate broker. **queuectl doesn't.** It's a single `pip install` — powered by SQLite — that gives you everything you need to run background jobs on a single machine.
 
-- Python 3.8+
-- Dependencies: click, requests, flask, flask-cors, flask-socketio, croniter
+```bash
+pip install queuectl
+queuectl enqueue --command "python train_model.py" --priority high --tags "ml"
+queuectl worker start --count 4
+```
 
-## 🚀 Setup Instructions
+That's it. No Redis. No Docker. No config files. Just a CLI that works.
 
-### 1. Clone and Install
+---
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+**🔧 Core Engine**
+- Atomic job claiming (no duplicates)
+- Exponential backoff retries
+- Dead Letter Queue for permanent failures
+- Job timeout with auto-recovery
+- SQLite + WAL mode (zero config)
+
+</td>
+<td width="50%">
+
+**🚀 Advanced**
+- Priority queues (low / medium / high)
+- DAG-based job dependencies
+- Worker pools (GPU, CPU, IO)
+- Job tagging & filtering
+- Cron scheduling
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**📡 Integrations**
+- Webhook notifications (HMAC signed)
+- Real-time web dashboard
+- JSON output for scripting
+- Shell completions (bash/zsh/fish)
+- Docker & docker-compose
+
+</td>
+<td width="50%">
+
+**🛡️ Production Ready**
+- 86 tests across 5 test suites
+- Command validation (blocks `rm -rf /`)
+- API token authentication
+- Audit trail for every job
+- GitHub Actions CI/CD
+
+</td>
+</tr>
+</table>
+
+---
+
+## 📦 Installation
+
+```bash
+pip install queuectl
+```
+
+Or install from source:
 
 ```bash
 git clone https://github.com/IamHarriiii/Queuectl.git
 cd Queuectl
-pip install -r requirements.txt
-pip install -e .
-```
-
-### 2. Run Migrations
-
-```bash
+pip install -e ".[all]"   # includes dev + realtime extras
 queuectl migrate run
 ```
 
-### 3. Verify Installation
+<details>
+<summary><b>🐳 Docker</b></summary>
 
 ```bash
-queuectl --version   # queuectl, version 2.0.0
-queuectl --help
-```
-
-### Docker Setup (Alternative)
-
-```bash
+git clone https://github.com/IamHarriiii/Queuectl.git
+cd Queuectl
 docker-compose up -d
+# Dashboard → http://localhost:5000
+# 3 workers auto-started
 ```
 
-This starts the web dashboard on port 5000 and 3 worker processes.
+</details>
 
-## 💻 Usage Examples
+---
+
+## 🚀 Quick Start
+
+### 1. Enqueue a job
+
+```bash
+queuectl enqueue --command "echo Hello World"
+```
+
+### 2. Start workers
+
+```bash
+queuectl worker start --count 3
+```
+
+### 3. Check status
+
+```bash
+queuectl status
+```
+
+```
+==================================================
+QUEUE STATUS
+==================================================
+
+Jobs:
+  Pending:        0
+  Processing:     1
+  Completed:     12
+  Failed:         0
+  Dead (DLQ):     0
+  --------------------
+  Total:         13
+
+Active Workers: 3
+==================================================
+```
+
+### 4. Open the dashboard
+
+```bash
+queuectl dashboard
+# → http://localhost:5000
+```
+
+---
+
+## 📖 Documentation
 
 ### Enqueue Jobs
 
 ```bash
-# Simple job
-queuectl enqueue '{"command":"echo Hello World"}'
-
-# Using --command flag with priority and timeout
-queuectl enqueue --command "echo hello" --priority high --timeout 60
-
-# With tags and worker pool
-queuectl enqueue --command "train_model.py" --priority high --tags "ml,batch" --pool gpu
-
-# With delay
-queuectl enqueue --command "cleanup.sh" --delay 3600
+# With priority, timeout, tags, and pool
+queuectl enqueue --command "python train.py" \
+  --priority high \
+  --timeout 3600 \
+  --tags "ml,nightly" \
+  --pool gpu
 
 # With dependencies
 queuectl enqueue --command "step2.py" --depends-on "job-step1"
 
-# Batch enqueue from file
+# Delayed execution (1 hour from now)
+queuectl enqueue --command "cleanup.sh" --delay 3600
+
+# Batch from file
 queuectl batch jobs.json
+
+# JSON input (legacy)
+queuectl enqueue '{"command":"echo hi", "priority": 2}'
 ```
 
 ### Cron Scheduling
 
 ```bash
-# Schedule 5 future runs of a backup job
-queuectl schedule --command "python backup.py" --cron "0 2 * * *" --count 5
+# Nightly backup at 2am (next 30 runs)
+queuectl schedule --command "python backup.py" --cron "0 2 * * *" --count 30
 
-# Schedule hourly health check
-queuectl schedule --command "curl http://localhost/health" --cron "0 * * * *" --count 24
+# Hourly health check
+queuectl schedule --command "curl localhost/health" --cron "0 * * * *" --count 24
 ```
 
-### Worker Management
+### Worker Pools
 
 ```bash
-# Start 3 workers
+# General workers
 queuectl worker start --count 3
 
-# Start workers for a specific pool
-queuectl worker start --count 2 --pool gpu
-
-# Stop all workers
-queuectl worker stop
+# GPU pool — only processes jobs with --pool gpu
+queuectl worker start --count 1 --pool gpu
 ```
 
-### Queue Status & Listing
+### Monitoring
 
 ```bash
-# Check status
-queuectl status
-queuectl status --json-output
-
-# List jobs with filters
-queuectl list --state pending --priority high
-queuectl list --tag nightly --limit 50
-queuectl list --json-output
-
-# View job logs
-queuectl logs job123
-
-# View audit trail
-queuectl audit job123
+queuectl logs job123          # stdout + stderr + exit code
+queuectl audit job123         # full state transition history
+queuectl metrics show         # success rate, avg time, throughput
+queuectl list --state failed  # filter by state, tag, priority
 ```
 
-### Job Lifecycle Operations
+### Webhooks
 
 ```bash
-# Cancel a job
-queuectl cancel job123
-
-# Retry from Dead Letter Queue
-queuectl dlq list
-queuectl dlq retry job123
+# HMAC-signed webhook with rate limiting
+queuectl webhook add \
+  --url https://api.example.com/hook \
+  --events "job.completed,job.failed" \
+  --secret "my-webhook-secret"
 ```
 
-### Webhook Management
+<details>
+<summary><b>Webhook payload example</b></summary>
 
-```bash
-# Add webhook for job events
-queuectl webhook add --url https://example.com/hook --events "job.completed,job.failed"
-
-# Add webhook with secret (HMAC authentication)
-queuectl webhook add --url https://api.example.com/webhook --events "*" --secret "mysecret123"
-
-# List, toggle, test webhooks
-queuectl webhook list
-queuectl webhook toggle webhook-abc123 --disable
-queuectl webhook test --url https://example.com/hook
+```json
+{
+  "event": "job.completed",
+  "job_id": "abc-123",
+  "command": "echo hello",
+  "state": "completed",
+  "exit_code": 0,
+  "timestamp": "2026-03-04T08:00:00"
+}
 ```
 
-### Metrics & Monitoring
+Headers include `X-Webhook-Signature` with HMAC-SHA256 signature.
+
+</details>
+
+### JSON Output for Scripting
 
 ```bash
-# Show metrics dashboard
-queuectl metrics show --period 24
-
-# Export metrics as JSON/CSV
-queuectl metrics export --format json --output metrics.json
-
-# Launch web dashboard
-queuectl dashboard --port 8080
+# Pipe to jq
+queuectl status --json-output | jq '.jobs.pending'
+queuectl list --json-output | jq '.[] | select(.state=="failed")'
 ```
 
 ### Configuration
 
-```bash
-queuectl config list
-queuectl config set max-retries 5
-queuectl config set job-timeout 600
-queuectl config set command-validation true
-queuectl config set webhook-rate-limit 100
-```
-
-### Shell Completions
-
-```bash
-queuectl completions --shell bash >> ~/.bashrc
-queuectl completions --shell zsh >> ~/.zshrc
-```
-
-## 🏗️ Architecture Overview
-
-### Components
-
-```
-┌─────────────┐
-│   CLI       │  16 commands with --json-output
-└──────┬──────┘
-       │
-┌──────▼──────┐     ┌──────────────┐
-│   Queue     │────▶│ Dependencies │  DAG resolution
-└──────┬──────┘     └──────────────┘
-       │
-┌──────▼──────┐     ┌──────────────┐
-│  Storage    │────▶│  Audit Log   │  State transitions
-└──────┬──────┘     └──────────────┘
-       │
-┌──────▼──────┐     ┌──────────────┐     ┌──────────────┐
-│  Workers    │────▶│  Webhooks    │────▶│  Metrics     │
-└──────┬──────┘     └──────────────┘     └──────────────┘
-       │
-┌──────▼──────┐
-│  Executor   │  subprocess with validation
-└─────────────┘
-
-┌─────────────┐
-│  Web Dashboard  │  Flask + Socket.IO (optional)
-└─────────────┘
-```
-
-### Job Lifecycle
-
-```
-[ENQUEUE] ──→ PENDING ──→ PROCESSING ──→ COMPLETED ✓
-                 ↑             ↓
-                 │        FAILED (attempts < max_retries)
-                 │             ↓
-                 └─────── (exponential backoff wait)
-                               ↓
-                          DEAD (DLQ) ✗
-
-Cancellation: PENDING/PROCESSING ──→ CANCELLED ✗
-```
-
-### Worker Coordination
-
-**Atomic Job Claiming** (priority-aware, pool-filtered):
-```sql
-UPDATE jobs 
-SET state='processing', worker_id=?, locked_at=CURRENT_TIMESTAMP
-WHERE id IN (
-    SELECT id FROM jobs
-    WHERE (state='pending' OR (state='processing' AND locked_at < datetime('now', '-5 minutes')))
-    AND (run_at IS NULL OR run_at <= CURRENT_TIMESTAMP)
-    AND cancelled_at IS NULL
-    AND (pool IS NULL OR pool = ?)
-    ORDER BY priority DESC, created_at ASC
-    LIMIT 1
-)
-```
-
-## 🔧 Configuration Options
-
 | Key | Default | Description |
 |-----|---------|-------------|
-| `max_retries` | 3 | Maximum retry attempts before DLQ |
-| `backoff_base` | 2 | Base for exponential backoff calculation |
-| `job_timeout` | 300 | Job execution timeout in seconds |
-| `worker_poll_interval` | 1 | Worker polling interval in seconds |
-| `priority_inheritance` | true | Auto-upgrade dependency priorities |
-| `command_validation` | true | Block dangerous command patterns |
-| `webhook_rate_limit` | 100 | Max webhook calls per minute |
+| `max_retries` | 3 | Max retry attempts before DLQ |
+| `backoff_base` | 2 | Exponential backoff base |
+| `job_timeout` | 300 | Execution timeout (seconds) |
+| `worker_poll_interval` | 1 | Poll interval (seconds) |
+| `command_validation` | true | Block dangerous commands |
+| `priority_inheritance` | true | Deps inherit parent priority |
+| `webhook_rate_limit` | 100 | Max webhook calls/minute |
 
-## 📊 Project Structure
+```bash
+queuectl config set max-retries 5
+queuectl config list
+```
+
+---
+
+## 🏗️ Architecture
+
+```
+                    ┌──────────────────────┐
+                    │      CLI (16 cmds)   │
+                    └──────────┬───────────┘
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+     ┌────────▼─────┐  ┌──────▼──────┐  ┌──────▼──────┐
+     │    Queue     │  │  Scheduler  │  │  Dashboard  │
+     │  (enqueue,   │  │   (cron)    │  │  (Flask +   │
+     │   cancel)    │  │             │  │  Socket.IO) │
+     └────────┬─────┘  └──────┬──────┘  └─────────────┘
+              │               │
+     ┌────────▼───────────────▼──────┐
+     │         Storage (SQLite)      │
+     │  WAL mode · Atomic claims     │
+     │  Audit log · Migrations       │
+     └────────────────┬──────────────┘
+                      │
+     ┌────────────────▼──────────────┐
+     │       Worker Processes        │
+     │  Pool routing · Dep checking  │
+     │  Timeout · Retry · Webhooks   │
+     └──────────────────────────────┘
+```
+
+**Job Lifecycle:**
+```
+ENQUEUE → PENDING → PROCESSING → COMPLETED ✓
+              ↑          ↓
+              └── FAILED (retry with backoff)
+                     ↓
+                  DEAD (DLQ) ✗
+```
+
+---
+
+## 🧪 Testing
+
+86 tests across 5 test suites:
+
+```bash
+pytest tests/test_unit.py -v           # 69 unit tests
+python tests/test_scenarios.py         #  6 integration tests
+python tests/test_phase1_enhancements.py  #  4 priority/metrics tests
+python tests/test_phase2.py            #  3 dependency tests
+python tests/test_phase3.py            #  4 webhook/timeout tests
+```
+
+---
+
+## 📂 Project Structure
 
 ```
 queuectl/
 ├── queuectl/
-│   ├── __init__.py        # Package init, v2.0.0
-│   ├── cli.py             # 16 CLI commands (Click)
-│   ├── queue.py           # Queue operations
-│   ├── worker.py          # Workers, pools, dependency checking
-│   ├── storage.py         # SQLite layer, audit log, validation
-│   ├── config.py          # Configuration management
-│   ├── models.py          # Job model, states, priorities
-│   ├── dependencies.py    # DAG dependency resolver
-│   ├── metrics.py         # Metrics tracking & export
-│   ├── webhooks.py        # Webhook dispatch, rate limiting, HMAC
-│   ├── migrations.py      # Database migration system
-│   ├── utils.py           # Utility functions
-│   └── web/
-│       ├── app.py         # Flask dashboard with API auth
-│       └── templates/     # Dashboard HTML templates
-├── tests/
-│   ├── test_scenarios.py          # Core integration tests
-│   ├── test_phase1_enhancements.py # Priority & metrics tests
-│   ├── test_phase2.py             # Dependency tests
-│   ├── test_phase3.py             # Webhook & timeout tests
-│   └── test_unit.py               # Pytest unit tests
-├── .github/workflows/ci.yml   # GitHub Actions CI/CD
-├── Dockerfile                  # Docker container
-├── docker-compose.yml          # Multi-service deployment
-├── ARCHITECTURE.md             # Detailed architecture docs
-├── CHANGELOG.md                # Version history
-├── SECURITY.md                 # Security considerations
-├── requirements.txt            # Python dependencies
-└── setup.py                    # Package setup
+│   ├── cli.py             # 16 CLI commands
+│   ├── queue.py            # Job queue operations
+│   ├── worker.py           # Worker processes + pools
+│   ├── storage.py          # SQLite layer + audit log
+│   ├── dependencies.py     # DAG dependency resolver
+│   ├── webhooks.py         # Webhook dispatch + HMAC
+│   ├── metrics.py          # Stats tracking + export
+│   ├── migrations.py       # Schema migration system
+│   ├── models.py           # Job model + states
+│   ├── config.py           # Configuration management
+│   ├── utils.py            # Utilities
+│   └── web/                # Flask dashboard
+├── tests/                  # 5 test suites (86 tests)
+├── .github/workflows/      # CI + PyPI auto-publish
+├── Dockerfile              # Container support
+├── docker-compose.yml      # Multi-service deployment
+├── pyproject.toml          # Modern packaging
+└── setup.py                # Legacy packaging
 ```
 
-## 🧪 Testing
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a PR.
 
 ```bash
-# Run all tests
-python tests/test_scenarios.py
-python tests/test_phase1_enhancements.py
-python tests/test_phase2.py
-python tests/test_phase3.py
-
-# Run pytest unit tests
-pip install pytest
+git clone https://github.com/IamHarriiii/Queuectl.git
+cd Queuectl
+pip install -e ".[dev]"
 pytest tests/test_unit.py -v
 ```
 
-## 🐛 Known Limitations
-
-1. **Single Machine Only** — SQLite doesn't support distributed deployment
-2. **`shell=True`** — Mitigated by command validation, but not fully sandboxed
-3. **No Authentication on CLI** — Assumes trusted local environment
-4. **SQLite Concurrency** — Limited write concurrency under very high load
-
-See [SECURITY.md](SECURITY.md) for security considerations.
-
-## 🎥 Demo 
-
-https://drive.google.com/file/d/1xGuwrG4USCyO1zYnsmwxv8DplZ3bvC3A/view?usp=sharing
-
-## 📄 License
-
-This project is created for educational purposes as part of a backend developer internship assignment.
-
-## 👤 Author
-
-**HARINARAYANAN U**  
-hari.narayanan1402@gmail.com  
-https://github.com/IamHarriiii
+See the [open issues](https://github.com/IamHarriiii/Queuectl/issues) for things to work on.
 
 ---
+
+## 📜 License
+
+MIT © [HARINARAYANAN U](https://github.com/IamHarriiii)
+
+---
+
+<div align="center">
+
+**If you find this useful, please ⭐ the repo!**
+
+[Report a Bug](https://github.com/IamHarriiii/Queuectl/issues/new?template=bug_report.md) · [Request a Feature](https://github.com/IamHarriiii/Queuectl/issues/new?template=feature_request.md)
+
+</div>
