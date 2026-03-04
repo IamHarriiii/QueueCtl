@@ -4,11 +4,11 @@
 
 **A production-grade CLI job queue with workers, retries, webhooks, cron scheduling, and a real-time dashboard.**
 
-[![CI](https://github.com/IamHarriiii/Queuectl/actions/workflows/ci.yml/badge.svg)](https://github.com/IamHarriiii/Queuectl/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/queuectl?color=blue&label=PyPI)](https://pypi.org/project/queuectl/)
-[![Python](https://img.shields.io/pypi/pyversions/queuectl)](https://pypi.org/project/queuectl/)
+[![CI](https://github.com/IamHarriiii/QueueCtl/actions/workflows/ci.yml/badge.svg)](https://github.com/IamHarriiii/QueueCtl/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/badge/PyPI-v2.0.0-blue)](https://pypi.org/project/queuectl/)
+[![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://pypi.org/project/queuectl/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Downloads](https://img.shields.io/pypi/dm/queuectl?color=brightgreen)](https://pypi.org/project/queuectl/)
+[![Downloads](https://img.shields.io/badge/pip%20install-queuectl-brightgreen)](https://pypi.org/project/queuectl/)
 
 [Installation](#-installation) · [Quick Start](#-quick-start) · [Features](#-features) · [Documentation](#-documentation) · [Contributing](#-contributing)
 
