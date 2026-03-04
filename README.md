@@ -1,8 +1,8 @@
 <div align="center">
 
-# QueueCtl
+# ⏳ QueueCtl
 
-**A production-grade CLI job queue with workers, retries, webhooks, cron scheduling, and a real-time dashboard.**
+** ⚡ A production-grade CLI job queue with workers, retries, webhooks, cron scheduling, and a real-time dashboard.**
 
 [![CI](https://github.com/IamHarriiii/QueueCtl/actions/workflows/ci.yml/badge.svg)](https://github.com/IamHarriiii/QueueCtl/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/badge/PyPI-v2.0.0-blue)](https://pypi.org/project/queuectl/)
