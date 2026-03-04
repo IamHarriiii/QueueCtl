@@ -74,7 +74,7 @@ def truncate_string(s: str, max_length: int = 50) -> str:
     if len(s) <= max_length:
         return s
 
-    return s[:max_length-2] + '..'
+    return s[:max_length - 2] + '..'
 
 
 def parse_tags(tags_str: Optional[str]) -> List[str]:
@@ -103,7 +103,7 @@ def format_duration(seconds: float) -> str:
         Human-readable duration string
     """
     if seconds < 1:
-        return f"{seconds*1000:.0f}ms"
+        return f"{seconds * 1000:.0f}ms"
     elif seconds < 60:
         return f"{seconds:.1f}s"
     elif seconds < 3600:
